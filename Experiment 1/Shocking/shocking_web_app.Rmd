@@ -1,0 +1,89 @@
+---
+title: "Netflix View History Data Visuliazation"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(DT)
+library(tidyr)
+library(lubridate)
+library(zoo)
+library(flexdashboard)
+library(shiny)
+library(ggplot2)
+library(rhandsontable)
+library(plotly)
+```
+
+Read File
+=======================================================================
+
+```{r, echo = FALSE}
+fileInput("file1", "Choose CSV File",
+                    multiple = TRUE,
+                   accept = c("text/csv",
+                            "text/comma-separated-values,text/plain",
+                            ".csv"))
+
+textInput("username", "username")
+actionButton('submit', 'Submit', icon = icon('refresh'))
+
+v <- reactiveValues(t = NULL)
+
+values <- reactiveValues(df_data = NULL)
+
+observeEvent(req(input$submit), {
+  v$t <- input$username
+  values$df_data <- read.csv(input$file1$datapath)
+  Netflix <- values$df_data
+  Netflix <- Netflix[Netflix$Profile.Name==v$t, ]
+  values$post_df_data <- Netflix
+  Date <- ymd_hms(Netflix$Start.Time)
+
+  converted_date <- as_date(Date)
+  Netflix$Date <- converted_date
+  Netflix$Duration_converted <- period_to_seconds(hms(Netflix$Duration))
+  Netflix <- Netflix %>%
+    separate(col = Duration, into = c("Duration_0", "Duration_1", "Duration_2"), sep = ':')
+  Netflix <- transform(Netflix,
+                             Duration_1 = as.numeric(Duration_1))
+  my_time_seconds_sum <- sum(Netflix$Duration_converted)  # Calculate sum of seconds
+  my_time_sum <- seconds_to_period(my_time_seconds_sum)  # Convert seconds to Period
+  v$total_watching <- my_time_sum$day 
+  a <- min(Netflix$Date, na.rm = TRUE)
+  b <- max(Netflix$Date, na.rm = TRUE)
+  difference_date <- difftime(b, a, units = "secs")
+  difference_date_period <- seconds_to_period(difference_date)  # Convert seconds to Period
+  v$Netflix_lifespan <- difference_date_period$day
+  
+  second_per_day <- my_time_seconds_sum/(difference_date_period$day)
+  v$second_per_day_converted <- seconds_to_period(second_per_day)
+
+})
+
+
+
+
+
+```
+Result
+=======================================================================
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+```{r}
+renderText({paste("Your Netflix watching time is:", '[', v$total_watching, ']', "Days")})
+```
+
+```{r}
+renderText({paste("You have subscribed Netflix for:", '[', v$Netflix_lifespan, ']', "Years")})
+```
+
+```{r}
+renderText({paste("You spend", '[', v$second_per_day_converted, ']', "hour(s) per day on Netflix")})
+```

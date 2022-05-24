@@ -1,0 +1,13 @@
+name: web_app
+title: web_app
+username:
+account: logenlee
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6137170
+bundleId: 5860343
+url: https://logenlee.shinyapps.io/web_app/
+when: 1651499360.9788
+lastSyncTime: 1651499360.97882
+asMultiple: FALSE
+asStatic: FALSE

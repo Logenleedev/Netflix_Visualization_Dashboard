@@ -1,0 +1,186 @@
+---
+
+---
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(zoo)
+library(ggplot2)
+library(plotly)
+
+```
+```{r}
+Netflix <- read.csv("../Data/Post-Process/Brennan_view_activity.csv") 
+str(Netflix)
+
+```
+
+```{r}
+Netflix
+```
+
+```{r}
+Date <- ymd_hms(Netflix$Start.Time)
+
+converted_date <- as_date(Date)
+Netflix$Date <- converted_date
+```
+
+```{r}
+Netflix
+```
+```{r}
+Netflix$Duration_converted <- period_to_seconds(hms(Netflix$Duration))
+```
+
+```{r}
+Netflix
+```
+
+```{r}
+Netflix <- Netflix %>%
+  separate(col = Duration, into = c("Duration_0", "Duration_1", "Duration_2"), sep = ':')
+```
+
+```{r}
+Netflix <- transform(Netflix,
+                             Duration_1 = as.numeric(Duration_1))
+
+```
+```{r}
+Netflix
+```
+```{r}
+my_time_seconds_sum <- sum(Netflix$Duration_converted)  # Calculate sum of seconds
+my_time_seconds_sum    
+my_time_sum <- seconds_to_period(my_time_seconds_sum)  # Convert seconds to Period
+my_time_sum$day 
+
+
+```
+
+```{r}
+a <- min(Netflix$Date, na.rm = TRUE)
+b <- max(Netflix$Date, na.rm = TRUE)
+difference_date <- difftime(b, a, units = "secs")
+difference_date_period <- seconds_to_period(difference_date)  # Convert seconds to Period
+difference_date_period$day
+
+second_per_day <- my_time_seconds_sum/(difference_date_period$day)
+second_per_day_converted <- seconds_to_period(second_per_day)
+second_per_day_converted
+```
+
+
+
+
+
+```{r}
+netflix_episode_per_day <- netflix_episode_per_day[order(netflix_episode_per_day$Date),]
+netflix_episode_per_day$dat_of_week <- wday(netflix_episode_per_day$Date)
+netflix_episode_per_day$weekdays <- weekdays(netflix_episode_per_day$Date, abbreviate = T)
+netflix_episode_per_day$month <- months(netflix_episode_per_day$Date, abbreviate = T)
+```
+
+
+
+```{r}
+netflix_episode_per_day
+```
+```{r}
+netflix_episode_per_day$converted_week <-factor(netflix_episode_per_day$dat_of_week,
+                                    levels = rev(1:7),
+                                    labels = rev(c("Sun","Mon","Tue","Wed","Thur","Fri","Sat")),
+                                    ordered = TRUE) 
+```
+```{r}
+netflix_episode_per_day$converted_month <- factor(month(netflix_episode_per_day$Date),
+                                   levels = as.character(1:12), 
+                                   labels = c("Jan","Feb","March","April","May","June","July","Aug","Sep","Oct","Nov","Dec"),
+                                   ordered = TRUE)
+```
+
+```{r}
+netflix_episode_per_day$year <- factor(as.yearmon(netflix_episode_per_day$Date)) 
+netflix_episode_per_day$week <- as.numeric(format(netflix_episode_per_day$Date,"%W"))
+netflix_episode_per_day$weeks <- ceiling(day(netflix_episode_per_day$Date) / 7)
+```
+
+
+
+```{r}
+netflix_episode_per_day
+```
+```{r}
+netflix_episode_calendar <- ggplot(netflix_episode_per_day, aes(weeks, converted_week, fill = netflix_episode_per_day$n)) + 
+  geom_tile(colour = "white") + 
+  facet_grid(year(netflix_episode_per_day$Date) ~ converted_month) + 
+  scale_fill_gradient(low = "#FFD000", high = "#FF1919") + 
+  ggtitle("Episode Calendar Heatmap") +
+  labs(x = "Week of Month", y = "Day of the Week") +
+  labs(fill = "# Episode") +
+  theme(
+        axis.text.y = element_text(size=5, angle=45, hjust=1))
+netflix_episode_calendar
+ggplotly()
+```
+
+```{r}
+days_of_week <- netflix_episode_per_day %>%
+  count(converted_week)
+days_of_week
+
+days_of_week_plot <- days_of_week %>% 
+  ggplot(aes(converted_week, n)) +
+  geom_col(fill = "#5b59d6") +
+  coord_polar()  +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(face = "bold"),
+        plot.title = element_text(size = 16, face = "bold")) +
+  ggtitle("Frequency sorted based on day of the week")
+days_of_week_plot
+```
+
+```{r}
+month_analysis <- netflix_episode_per_day %>%
+  count(converted_month)
+month_analysis
+
+month_plot_plot <- month_analysis %>% 
+  ggplot(aes(converted_month, n)) +
+  geom_col(fill = "#808000") +
+  coord_polar()  +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(face = "bold"),
+        plot.title = element_text(size = 18, face = "bold")) +
+  ggtitle("Frequency sorted based on month") 
+month_plot_plot
+```
+
+```{r}
+year_month_analysis <- netflix_episode_per_day %>%
+  count(year)
+year_month_analysis
+
+year_month_analysiss_plot <- year_month_analysis %>% 
+  ggplot(aes(year, n)) +
+  geom_col(fill = "#1a954d") +
+  coord_polar()  +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size = 8),
+        plot.title = element_text(size = 10, face = "bold")) +
+  ggtitle("Frequency sorted based on each month of the year")
+year_month_analysiss_plot
+```
